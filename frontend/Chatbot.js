@@ -1,10 +1,10 @@
 // src/Chatbot.js
 
 import React, { useState, useEffect, useRef } from 'react';
-// import axios from 'axios';
+import axios from 'axios';
 import './Chatbot.css';
-import { mockApi } from './mockApi'; // Import the mock API FOR TESTING
 import Sidebar from './Sidebar'; // Import the Sidebar component
+import { v4 as uuidv4 } from 'uuid'; // Import uuid for unique session IDs
 
 const Chatbot = () => {
   const [messages, setMessages] = useState([]);
@@ -14,15 +14,15 @@ const Chatbot = () => {
   const [currentConversation, setCurrentConversation] = useState(null);
   const messagesEndRef = useRef(null);
 
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   const handleSendMessage = async () => {
     if (userInput.trim() === '') return;
@@ -34,18 +34,23 @@ const Chatbot = () => {
     setLoading(true);
 
     try {
-      const response = await mockApi(userInput);
+      console.log('Sending message to backend:', userInput);
+      const response = await axios.post('http://127.0.0.1:5000/api/chat', {
+        session_id: currentConversation ? currentConversation.id : uuidv4(), // Pass session ID
+        message: userInput
+      });
 
+      console.log('Received response from backend:', response.data.reply);
       const botMessage = { sender: 'bot', text: response.data.reply, timestamp: new Date() };
       setMessages((prevMessages) => [...prevMessages, botMessage]);
 
       // Update the current conversation with the new message
       const updatedConversation = {
         ...currentConversation,
-        messages: [...currentConversation.messages, userMessage, botMessage],
+        messages: [...currentConversation ? currentConversation.messages : [], userMessage, botMessage],
       };
       const updatedConversations = conversations.map((conv) =>
-        conv === currentConversation ? updatedConversation : conv
+        conv.id === currentConversation.id ? updatedConversation : conv
       );
       setConversations(updatedConversations);
       setCurrentConversation(updatedConversation);
@@ -59,6 +64,7 @@ const Chatbot = () => {
 
   const handleNewConversation = () => {
     const newConversation = {
+      id: uuidv4(), // Unique ID for each conversation
       title: `Conversation ${conversations.length + 1}`,
       messages: [],
     };
@@ -105,6 +111,10 @@ const Chatbot = () => {
       </div>
     </div>
   );
+};
+
+export default Chatbot;
+
 };
 
 export default Chatbot;
